@@ -48,6 +48,8 @@ interface ToolOverlayProps {
   panRef: React.RefObject<{ x: number; y: number }>;
   onCloseAgent: (id: number) => void;
   alwaysShowOverlay: boolean;
+  /** Agent id → Agent definition name, shown where a teammate shows its name. */
+  agentDefinitionNames?: Record<number, string>;
 }
 
 /** Derive a short human-readable activity string from tools/status */
@@ -121,6 +123,7 @@ export function ToolOverlay({
   panRef,
   onCloseAgent,
   alwaysShowOverlay,
+  agentDefinitionNames = {},
 }: ToolOverlayProps) {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -274,7 +277,11 @@ export function ToolOverlay({
         }
 
         // Team info
-        const teamRoleLabel = ch.isTeamLead ? 'LEAD' : ch.agentName || null;
+        // An Agent definition's name fills the same slot for an agent that is
+        // not on a team (a lead keeps LEAD; a teammate keeps its own name).
+        const teamRoleLabel = ch.isTeamLead
+          ? 'LEAD'
+          : ch.agentName || (isSub ? null : agentDefinitionNames[id]) || null;
         const hasExtraLines = !!(ch.directoryName || teamRoleLabel);
 
         // Context gauge. Every agent gets one — lead, teammate, adopted,

@@ -52,6 +52,10 @@ _Avoid_: parent (that's the sub-agent relationship), orchestrator
 A named agent spawned by another agent — the name is what makes it a teammate. Its spawner is its Lead, and together they form a Team. Every teammate has its own transcript and sits in a seat; it may or may not have its own session or terminal — how it runs never changes what it is.
 _Avoid_: inline teammate, tmux teammate, session teammate (former run-style distinctions; a teammate's run style is a property, not an identity)
 
+**Agent definition**:
+A named, reusable profile an agent can be launched with: its role and what it is best at, its skills, tools and model, the Directories it may work in, and how many may run at once. Stored as YAML in `~/.pixel-agents/agents/`. Launching with a definition still creates an ordinary Agent; the definition is the template, never the session. A router is an Agent definition like any other.
+_Avoid_: persona, template (as a noun for this), role (that is one field of it), agent type
+
 ## Agent Lifecycle
 
 **Launch**:

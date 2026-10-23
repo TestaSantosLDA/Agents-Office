@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useCallback, useRef } from 'react';
 
+import type { AgentDefinitionLaunch } from '../components/agentDefinitionLaunch.js';
 import { MobileAgentBar } from '../components/MobileAgentBar.js';
 import { MobileKeyBar } from '../components/MobileKeyBar.js';
 import { MobileTerminalPage } from '../components/MobileTerminalPage.js';
@@ -28,6 +29,8 @@ interface MobileShellProps {
   directories: Directory[];
   onAddDirectory: () => void;
   onEditDirectory: (directory: Directory) => void;
+  /** Agent definitions in the launch drawer; selecting one slides to its terminal. */
+  agentDefinitionLaunch?: AgentDefinitionLaunch;
   onCloseAgent: (agentId: number) => void;
   /** The software keyboard is up (useKeyboardViewport). */
   keyboardOpen: boolean;
@@ -52,6 +55,7 @@ export function MobileShell({
   directories,
   onAddDirectory,
   onEditDirectory,
+  agentDefinitionLaunch,
   onCloseAgent,
   keyboardOpen,
 }: MobileShellProps) {
@@ -130,6 +134,12 @@ export function MobileShell({
         directories={directories}
         onAddDirectory={onAddDirectory}
         onEditDirectory={onEditDirectory}
+        agentDefinitionLaunch={
+          agentDefinitionLaunch && {
+            ...agentDefinitionLaunch,
+            onSelect: shell.launchDefinition,
+          }
+        }
         canLaunch={terminalAvailable}
         launchUnavailableReason={terminalUnavailableReason}
         getAppearance={drawer.getAppearance}

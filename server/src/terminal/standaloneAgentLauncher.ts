@@ -15,7 +15,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import type { HookProvider } from '../../../core/src/provider.js';
+import type { HookProvider, LaunchProfile } from '../../../core/src/provider.js';
 import type { AgentRuntime } from '../agentRuntime.js';
 import { createAgentState } from '../agentState.js';
 import type { AgentStateStore } from '../agentStateStore.js';
@@ -41,6 +41,10 @@ export interface LaunchStandaloneAgentOptions {
   /** Read from the host's persisted permission posture by the caller; never a
    *  per-launch choice made in the office. */
   bypassPermissions?: boolean;
+  /** How to run it, from an Agent definition (see agents/agentLaunch.ts). */
+  profile?: LaunchProfile;
+  /** Name of the Agent definition the profile came from, worn by the agent. */
+  definitionName?: string;
   cols?: number;
   rows?: number;
 }
@@ -65,6 +69,7 @@ export function launchStandaloneAgent(
 
   const launch = provider.buildLaunchCommand?.(sessionId, cwd, {
     bypassPermissions: options.bypassPermissions,
+    profile: options.profile,
   });
   if (!launch) {
     console.error('[Pixel Agents] Terminal: provider.buildLaunchCommand is not implemented');
@@ -118,6 +123,7 @@ export function launchStandaloneAgent(
     // it was assigned in the modal actually match. Falls back to the basename
     // for a cwd that is no Directory at all.
     directoryName: directoryNameForLaunch(cwd, [hostDirectory()]) ?? directoryNameFor(cwd),
+    definitionName: options.definitionName,
     providerId: provider.id,
   });
 

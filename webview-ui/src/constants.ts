@@ -560,3 +560,6 @@ export const VISUAL_VIEWPORT_FULL_EPSILON_PX = 1;
  *  (with an editable focused) = the software keyboard is up. Well above an
  *  address bar collapsing (~56 px), well below any on-screen keyboard. */
 export const KEYBOARD_MIN_HEIGHT_PX = 150;
+
+/** How long a refused launch with an Agent definition stays on screen. */
+export const LAUNCH_NOTICE_MS = 5000;

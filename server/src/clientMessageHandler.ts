@@ -3,6 +3,12 @@ import type { HookProvider } from '../../core/src/provider.js';
 import { resendAgentActivity } from './agentActivityResend.js';
 import { buildAgentDiagnostics } from './agentDiagnostics.js';
 import type { AgentRuntime } from './agentRuntime.js';
+import {
+  agentDefinitionsLoadedMessage,
+  handleAgentDefinitionClientMessage,
+  prepareDefinitionLaunch,
+} from './agents/agentMessages.js';
+import type { SkillDirectory } from './agents/localSkills.js';
 import type { AgentStateStore } from './agentStateStore.js';
 import type { LoadedAssets, LoadedCharacterSprites, LoadedPetSprites } from './assetLoader.js';
 import {
@@ -97,6 +103,21 @@ function hostDirectoriesFor(ctx: ClientMessageContext): HostDirectoryEntry[] {
   return ctx.ptyManager ? [hostDirectory()] : [];
 }
 
+/** Every Directory, shown or not, as a place local skills may live. */
+function skillDirectoriesFor(ctx: ClientMessageContext): SkillDirectory[] {
+  return listDirectories(hostDirectoriesFor(ctx)).map((d) => ({ name: d.name, path: d.path }));
+}
+
+/** Live agents launched with the named Agent definition (for maxConcurrent). */
+function countAgentsWithDefinition(store: AgentStateStore, definitionName: string): number {
+  const key = definitionName.toLowerCase();
+  let count = 0;
+  for (const [, agent] of store) {
+    if (agent.definitionName?.toLowerCase() === key) count++;
+  }
+  return count;
+}
+
 /**
  * The host Directories the drawer lists: all of them while the host's Show
  * setting is on, none while it is off (the default). Only the LIST is gated --
@@ -147,13 +168,36 @@ export function handleClientMessage(
       // field: the client sends only where to launch. Every launch comes from a
       // drawer row and carries its Directory's path; no directoryPath falls
       // back to the server cwd (launchStandaloneAgent's own default).
-      launchStandaloneAgent(
-        { store, runtime, ptyManager: ctx.ptyManager, provider: claudeProvider },
-        {
-          directoryPath: msg.directoryPath as string | undefined,
-          bypassPermissions: adapter?.getSetting(KEY_BYPASS_PERMISSIONS, false) ?? false,
-        },
-      );
+      const requestedPath = msg.directoryPath as string | undefined;
+      const bypassPermissions = adapter?.getSetting(KEY_BYPASS_PERMISSIONS, false) ?? false;
+      const deps = { store, runtime, ptyManager: ctx.ptyManager, provider: claudeProvider };
+      if (typeof msg.definitionName !== 'string') {
+        launchStandaloneAgent(deps, { directoryPath: requestedPath, bypassPermissions });
+        break;
+      }
+      // An Agent definition decides the Directory (within what it allows), the
+      // concurrency cap and the launch profile before anything spawns.
+      const prepared = prepareDefinitionLaunch({
+        definitionName: msg.definitionName,
+        requestedPath,
+        fallbackPath: hostDirectory().path,
+        running: (name) => countAgentsWithDefinition(store, name),
+        skillDirectories: skillDirectoriesFor(ctx),
+      });
+      if (!prepared.ok) {
+        send({
+          type: 'agentLaunchRejected',
+          definitionName: msg.definitionName,
+          reason: prepared.reason,
+        });
+        break;
+      }
+      launchStandaloneAgent(deps, {
+        directoryPath: prepared.directoryPath,
+        bypassPermissions,
+        profile: prepared.profile,
+        definitionName: prepared.definitionName,
+      });
       break;
     }
 
@@ -356,6 +400,16 @@ export function handleClientMessage(
         reply: send,
         suggestions: () =>
           collectDirectorySuggestions(claudeProvider, shownHostDirectoriesFor(ctx)),
+      });
+      break;
+
+    case 'saveAgentDefinition':
+    case 'removeAgentDefinition':
+    case 'requestLocalSkills':
+      handleAgentDefinitionClientMessage(msg, {
+        broadcast: (message) => store.broadcast(message),
+        reply: send,
+        skillDirectories: () => skillDirectoriesFor(ctx),
       });
       break;
 
@@ -576,6 +630,9 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
       type: 'directoriesLoaded',
       directories: listDirectories(shownHostDirectoriesFor(ctx)),
     });
+    // 4d. Agent definitions: launching with one is standalone-only, like the
+    // Directories it launches into.
+    send(agentDefinitionsLoadedMessage());
   }
 
   // Sync runtime refs with the persisted settings so scanners behave correctly
@@ -592,6 +649,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   const agentIds: number[] = [];
   const directoryNames: Record<number, string> = {};
   const externalAgents: Record<number, boolean> = {};
+  const definitionNames: Record<number, string> = {};
   const persistedSeats = adapter?.loadSeats() ?? {};
   const agentMeta: Record<number, { palette?: number; hueShift?: number; seatId?: string }> = {};
   for (const [id, agent] of store) {
@@ -601,6 +659,9 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     }
     if (agent.isExternal) {
       externalAgents[id] = true;
+    }
+    if (agent.definitionName) {
+      definitionNames[id] = agent.definitionName;
     }
     const persisted = persistedSeats[String(id)];
     agentMeta[id] = {
@@ -615,6 +676,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     agentMeta,
     directoryNames,
     externalAgents,
+    definitionNames,
   });
 
   // 7. Layout last (see step 3): flushes the webview's buffered existingAgents

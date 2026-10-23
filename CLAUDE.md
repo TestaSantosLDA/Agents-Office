@@ -34,6 +34,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server
     providers/hook/consentGate.ts    Provider-agnostic consent POLICY: when to ask (hooksConsentRequest per provider) and what an answer means (consentActionFor(choice, {installed, consent}) — see docs/adr/0001)
     providers/hook/consentExecutor.ts Provider-agnostic consent EXECUTION: applyConsentChoice(providerId, choice, ConsentEffects) runs the six actions in one order for both surfaces, and SERIALIZES answers per process across ALL providers
     providers/index.ts               Provider registry (claudeProvider + the hookProviders list the consent gate loops over)
+    agents/                          Agent definitions (Agent Office): agentDefinitions.ts (YAML in ~/.pixel-agents/agents, validate/save/remove), localSkills.ts (~/.claude/skills + each Directory's .claude/skills), agentLaunch.ts (Directory, maxConcurrent, LaunchProfile + per-agent --plugin-dir), agentMessages.ts (client messages + prepareDefinitionLaunch)
     agentRuntime.ts                  Lifecycle core: timers, scanners, HookEventHandler, SessionRouter, DismissalTracker
     agentStateStore.ts               EventEmitter-backed single source of truth (typed mutations + events)
     sessionRouter.ts                 session_id → agent_id mapping, event buffering, pending external sessions

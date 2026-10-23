@@ -3,6 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { Directory } from '../hooks/useExtensionMessages.js';
 import { isBrowserRuntime } from '../runtime.js';
 import { transport } from '../transport/index.js';
+import {
+  type AgentDefinitionLaunch,
+  closingAgentDefinitionLaunch,
+} from './agentDefinitionLaunch.js';
 import { LaunchDrawer } from './LaunchDrawer.js';
 import { Button } from './ui/Button.js';
 
@@ -16,6 +20,8 @@ interface BottomToolbarProps {
   onAddDirectory: () => void;
   /** Pencil on a user-defined row — opens the modal pre-filled. */
   onEditDirectory: (directory: Directory) => void;
+  /** Agent definitions in the drawer (Agent Office). */
+  agentDefinitionLaunch?: AgentDefinitionLaunch;
   /** Standalone: server has a working PTY, so agents can be launched here. */
   terminalAvailable: boolean;
   /** Why the terminal is off (shown on the disabled button's tooltip). */
@@ -30,6 +36,7 @@ export function BottomToolbar({
   directories,
   onAddDirectory,
   onEditDirectory,
+  agentDefinitionLaunch,
   terminalAvailable,
   terminalUnavailableReason,
 }: BottomToolbarProps) {
@@ -108,6 +115,9 @@ export function BottomToolbar({
               setIsDrawerOpen(false);
               onEditDirectory(directory);
             }}
+            agentDefinitionLaunch={closingAgentDefinitionLaunch(agentDefinitionLaunch, () =>
+              setIsDrawerOpen(false),
+            )}
           />
         </div>
       )}

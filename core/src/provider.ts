@@ -133,7 +133,7 @@ export interface HookProvider {
   buildLaunchCommand?(
     sessionId: string,
     cwd: string,
-    opts?: { bypassPermissions?: boolean },
+    opts?: { bypassPermissions?: boolean; profile?: LaunchProfile },
   ): {
     command: string;
     args: string[];
@@ -145,6 +145,22 @@ export interface HookProvider {
   /** Optional reference to a TeamProvider. When set, the hook handler registers team-aware
    *  branches (subagent routing, teammate discovery, permission forwarding, etc.). */
   readonly team?: TeamProvider;
+}
+
+/**
+ * How to run one launch beyond where and with which session id: the
+ * CLI-agnostic half of an Agent definition. Each provider maps these to its own
+ * flags; a provider that cannot honor a field ignores it.
+ */
+export interface LaunchProfile {
+  /** Appended to the CLI's default system prompt (role and instructions). */
+  appendSystemPrompt?: string;
+  /** Model alias or full name. Absent = the CLI's default. */
+  model?: string;
+  /** Built-in tools to make available. Absent or empty = the CLI's default set. */
+  tools?: string[];
+  /** Plugin directories to load for this session only (the agent's skills). */
+  pluginDirs?: string[];
 }
 
 // TODO(provider type taxonomy): FileProvider (polling-only CLIs) and StreamProvider

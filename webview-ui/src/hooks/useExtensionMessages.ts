@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { HooksConsentRequest } from '../../../core/src/messages.js';
+import type {
+  AgentDefinition,
+  HooksConsentRequest,
+  LocalSkill,
+} from '../../../core/src/messages.js';
 import { playDoneSound, playPermissionSound, setSoundEnabled } from '../notificationSound.js';
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
 import { reconcileExistingAgents } from '../office/engine/existingAgents.js';
@@ -87,6 +91,20 @@ export interface DirectorySaved {
   seq: number;
 }
 
+/** A refused saveAgentDefinition/removeAgentDefinition or launch with a
+ *  definition. `seq` rises with every one, like DirectoryRejection's. */
+export interface AgentDefinitionRejection {
+  name: string;
+  reason: string;
+  seq: number;
+}
+
+/** An accepted saveAgentDefinition, acked to this office alone. */
+export interface AgentDefinitionSaved {
+  definition: AgentDefinition;
+  seq: number;
+}
+
 interface ExtensionMessageState {
   agents: number[];
   selectedAgent: number | null;
@@ -113,6 +131,16 @@ interface ExtensionMessageState {
   directorySuggestions: string[];
   /** Distinct directoryNames seen across agents this session — source for the Areas Directory dropdown. */
   agentDirectoryNames: string[];
+  /** Agent definitions on the host (Agent Office). */
+  agentDefinitions: AgentDefinition[];
+  agentDefinitionSaved: AgentDefinitionSaved | null;
+  agentDefinitionRejection: AgentDefinitionRejection | null;
+  /** Last refused launch with a definition, shown as a toast-like notice. */
+  agentLaunchRejection: AgentDefinitionRejection | null;
+  /** Skills the create-agent screen can attach; refreshed when it opens. */
+  localSkills: LocalSkill[];
+  /** Agent id → name of the Agent definition it was launched with. */
+  agentDefinitionNames: Record<number, string>;
   externalAssetDirectories: string[];
   lastSeenVersion: string;
   extensionVersion: string;
@@ -199,6 +227,17 @@ export function useExtensionMessages(
   const [directorySaved, setDirectorySaved] = useState<DirectorySaved | null>(null);
   const [directorySuggestions, setDirectorySuggestions] = useState<string[]>([]);
   const [agentDirectoryNames, setAgentDirectoryNames] = useState<string[]>([]);
+  const [agentDefinitions, setAgentDefinitions] = useState<AgentDefinition[]>([]);
+  const [agentDefinitionSaved, setAgentDefinitionSaved] = useState<AgentDefinitionSaved | null>(
+    null,
+  );
+  const [agentDefinitionRejection, setAgentDefinitionRejection] =
+    useState<AgentDefinitionRejection | null>(null);
+  const [agentLaunchRejection, setAgentLaunchRejection] = useState<AgentDefinitionRejection | null>(
+    null,
+  );
+  const [localSkills, setLocalSkills] = useState<LocalSkill[]>([]);
+  const [agentDefinitionNames, setAgentDefinitionNames] = useState<Record<number, string>>({});
   const [externalAssetDirectories, setExternalAssetDirectories] = useState<string[]>([]);
   const [lastSeenVersion, setLastSeenVersion] = useState('');
   const [extensionVersion, setExtensionVersion] = useState('');
@@ -345,6 +384,10 @@ export function useExtensionMessages(
       } else if (msg.type === 'agentCreated') {
         const id = msg.id as number;
         const directoryName = msg.directoryName as string | undefined;
+        const definitionName = msg.definitionName as string | undefined;
+        if (definitionName) {
+          setAgentDefinitionNames((prev) => ({ ...prev, [id]: definitionName }));
+        }
         const isTeammate = msg.isTeammate as boolean | undefined;
         const teammateName = msg.teammateName as string | undefined;
         const teammateParentId = msg.parentAgentId as number | undefined;
@@ -400,6 +443,7 @@ export function useExtensionMessages(
         setAgentStatuses((prev) => omitKey(prev, id));
         setAgentAwaitingInput((prev) => omitKey(prev, id));
         setAgentSeenActivity((prev) => omitKey(prev, id));
+        setAgentDefinitionNames((prev) => omitKey(prev, id));
         setSubagentTools((prev) => omitKey(prev, id));
         // Remove all sub-agent characters belonging to this agent
         delete backgroundParentToolIdsRef.current[id];
@@ -411,6 +455,10 @@ export function useExtensionMessages(
         const meta = (msg.agentMeta || {}) as Record<number, ExistingAgentMeta>;
         const directoryNames = (msg.directoryNames || {}) as Record<number, string>;
         const externalAgents = (msg.externalAgents || {}) as Record<number, boolean>;
+        const definitionNames = (msg.definitionNames || {}) as Record<number, string>;
+        if (Object.keys(definitionNames).length > 0) {
+          setAgentDefinitionNames((prev) => ({ ...prev, ...definitionNames }));
+        }
         const headlessAgents: Record<number, boolean> = {};
         for (const id of incoming) {
           noteDirectoryName(directoryNames[id]);
@@ -741,6 +789,25 @@ export function useExtensionMessages(
           reason: msg.reason as string,
           seq: (prev?.seq ?? 0) + 1,
         }));
+      } else if (msg.type === 'agentDefinitionsLoaded') {
+        setAgentDefinitions((msg.definitions ?? []) as AgentDefinition[]);
+      } else if (msg.type === 'agentDefinitionSaved') {
+        const definition = msg.definition as AgentDefinition;
+        setAgentDefinitionSaved((prev) => ({ definition, seq: (prev?.seq ?? 0) + 1 }));
+      } else if (msg.type === 'agentDefinitionRejected') {
+        setAgentDefinitionRejection((prev) => ({
+          name: msg.name as string,
+          reason: msg.reason as string,
+          seq: (prev?.seq ?? 0) + 1,
+        }));
+      } else if (msg.type === 'agentLaunchRejected') {
+        setAgentLaunchRejection((prev) => ({
+          name: msg.definitionName as string,
+          reason: msg.reason as string,
+          seq: (prev?.seq ?? 0) + 1,
+        }));
+      } else if (msg.type === 'localSkillsLoaded') {
+        setLocalSkills((msg.skills ?? []) as LocalSkill[]);
       } else if (msg.type === 'settingsLoaded') {
         const soundOn = msg.soundEnabled as boolean;
         setSoundEnabled(soundOn);
@@ -884,6 +951,12 @@ export function useExtensionMessages(
     directorySaved,
     directorySuggestions,
     agentDirectoryNames,
+    agentDefinitions,
+    agentDefinitionSaved,
+    agentDefinitionRejection,
+    agentLaunchRejection,
+    localSkills,
+    agentDefinitionNames,
     externalAssetDirectories,
     lastSeenVersion,
     extensionVersion,
