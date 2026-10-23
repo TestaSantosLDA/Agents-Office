@@ -63,6 +63,8 @@ interface OfficeCanvasProps {
    *  character fires onClick (opens its terminal). Desktop keeps single-click
    *  focus with tap-again-to-deselect. */
   tapSelectsFirst?: boolean;
+  /** Agent Office: a click on a mailbox opens the tasks. */
+  onMailboxClick?: () => void;
 }
 
 export function OfficeCanvas({
@@ -83,6 +85,7 @@ export function OfficeCanvas({
   showAreas,
   activeAreaLabel,
   tapSelectsFirst = false,
+  onMailboxClick,
 }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -430,6 +433,16 @@ export function OfficeCanvas({
           getSeat: (seatId) => officeState.seats.get(seatId),
           getCharacter: (id) => officeState.characters.get(id),
         });
+        if (
+          onMailboxClick &&
+          hitId === null &&
+          petId === null &&
+          officeState.selectedAgentId === null &&
+          tile &&
+          officeState.isMailboxAt(tile.col, tile.row)
+        ) {
+          canvas.style.cursor = 'pointer';
+        }
       }
       officeState.hoveredAgentId = hitId;
     },
@@ -445,6 +458,7 @@ export function OfficeCanvas({
       hitTestDeleteButton,
       hitTestRotateButton,
       clampPan,
+      onMailboxClick,
     ],
   );
 
@@ -647,6 +661,15 @@ export function OfficeCanvas({
         return;
       }
 
+      // Mailbox: opens the tasks (with no agent selected to reseat).
+      if (onMailboxClick && officeState.selectedAgentId === null) {
+        const tile = screenToTile(clientX, clientY);
+        if (tile && officeState.isMailboxAt(tile.col, tile.row)) {
+          onMailboxClick();
+          return;
+        }
+      }
+
       // No agent hit — check seat click while agent is selected
       if (officeState.selectedAgentId !== null) {
         const selectedCh = officeState.characters.get(officeState.selectedAgentId);
@@ -684,7 +707,7 @@ export function OfficeCanvas({
         officeState.cameraFollowId = null;
       }
     },
-    [officeState, onClick, screenToWorld, screenToTile, tapSelectsFirst],
+    [officeState, onClick, onMailboxClick, screenToWorld, screenToTile, tapSelectsFirst],
   );
 
   const handleClick = useCallback(

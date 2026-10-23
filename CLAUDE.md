@@ -35,6 +35,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server
     providers/hook/consentExecutor.ts Provider-agnostic consent EXECUTION: applyConsentChoice(providerId, choice, ConsentEffects) runs the six actions in one order for both surfaces, and SERIALIZES answers per process across ALL providers
     providers/index.ts               Provider registry (claudeProvider + the hookProviders list the consent gate loops over)
     agents/                          Agent definitions (Agent Office): agentDefinitions.ts (YAML in ~/.pixel-agents/agents, validate/save/remove), localSkills.ts (~/.claude/skills + each Directory's .claude/skills), agentLaunch.ts (Directory, maxConcurrent, LaunchProfile + per-agent --plugin-dir), agentMessages.ts (client messages + prepareDefinitionLaunch)
+    tasks/                           Task queue (Agent Office): taskStore.ts (~/.pixel-agents/tasks.json), inboxes.ts (Jira inboxes, 0600, key+summary fetch on refresh), prompts.ts (triage/router/worker prompts, router answer parsing), headlessRunner.ts (`claude -p` for triage and routing), taskEngine.ts (pipeline + cap of 3 + done from agentStatus), taskPipeline.ts (wiring + client messages; task broadcasts skip read-only sockets)
     agentRuntime.ts                  Lifecycle core: timers, scanners, HookEventHandler, SessionRouter, DismissalTracker
     agentStateStore.ts               EventEmitter-backed single source of truth (typed mutations + events)
     sessionRouter.ts                 session_id → agent_id mapping, event buffering, pending external sessions
@@ -362,6 +363,9 @@ Per-agent runtime data: provider reference, session key, transcript-fallback fie
   standalone-state.json    { agents, seats }
   layout.json              OfficeLayout (shared across surfaces)
   server.json              { port, pid, authToken }
+  agents/*.yaml            Agent definitions (Agent Office)
+  tasks.json               Task queue (Agent Office)
+  inboxes.json             Jira inboxes with API tokens, 0600 (Agent Office)
   hooks/claude-hook.js     Bundled hook script (CJS, shebang)
 ```
 

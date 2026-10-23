@@ -21,6 +21,7 @@ import { createHttpServer } from './httpServer.js';
 import type { ServerConfig, StandaloneAccess } from './serverConfig.js';
 import { isServerConfig, isServerTarget, sameStandaloneAccess } from './serverConfig.js';
 import { loadOrCreateStandaloneToken } from './serverToken.js';
+import type { TaskEngine } from './tasks/taskEngine.js';
 import type { PtySessionManager } from './terminal/ptySessionManager.js';
 import { normalizeHostname } from './wsAuth.js';
 
@@ -73,6 +74,7 @@ export class PixelAgentsServer {
     onSetHooksEnabled?: SetHooksEnabledSideEffect;
     onReloadAssets?: ReloadAssetsSideEffect;
     ptyManager?: PtySessionManager;
+    tasks?: TaskEngine;
     /** Extra privileged Host names (standalone; see wsAuth.privilegedHostnames). */
     allowedHosts?: readonly string[];
     /** Replace the persisted standalone token, revoking every URL that carried
@@ -143,6 +145,7 @@ export class PixelAgentsServer {
       onSetHooksEnabled: options?.onSetHooksEnabled,
       onReloadAssets: options?.onReloadAssets,
       ptyManager: options?.ptyManager,
+      tasks: options?.tasks,
       allowedHosts: standalone?.allowedHosts,
     });
 

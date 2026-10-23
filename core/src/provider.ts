@@ -140,6 +140,18 @@ export interface HookProvider {
     env?: Record<string, string>;
   };
 
+  /** Build a one-shot, non-interactive run that prints its answer and exits
+   *  (the triage and router steps). Undefined = the provider can't run headless. */
+  buildHeadlessCommand?(
+    prompt: string,
+    cwd: string,
+    opts?: { bypassPermissions?: boolean; profile?: LaunchProfile },
+  ): {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+  };
+
   // ── Optional team/subagent extension (Agent Teams on Claude; empty for single-agent CLIs) ──
 
   /** Optional reference to a TeamProvider. When set, the hook handler registers team-aware
@@ -161,6 +173,8 @@ export interface LaunchProfile {
   tools?: string[];
   /** Plugin directories to load for this session only (the agent's skills). */
   pluginDirs?: string[];
+  /** First user prompt, sent as the session starts (the dispatcher's ticket). */
+  initialPrompt?: string;
 }
 
 // TODO(provider type taxonomy): FileProvider (polling-only CLIs) and StreamProvider

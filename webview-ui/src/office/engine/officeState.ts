@@ -43,6 +43,11 @@ import { advanceMatrixEffect, startMatrixEffect } from './matrixEffectState.js';
 import { createPet, updatePet } from './petEntity.js';
 import { anchorTile, closestFreeSeat } from './seatPlacement.js';
 
+/** Mailbox furniture, any rotation or state (MAILBOX, MAILBOX_FRONT_OFF, ...). */
+function isMailboxType(type: string): boolean {
+  return type === 'MAILBOX' || type.startsWith('MAILBOX_');
+}
+
 /** Internal helper: facing-tile coords for a seat. Returns null for invalid direction. */
 function seatFacingOffset(direction: Direction): { dCol: number; dRow: number } {
   if (direction === Direction.RIGHT) return { dCol: 1, dRow: 0 };
@@ -62,6 +67,8 @@ export class OfficeState {
   pets: Pet[] = [];
   /** Accumulated time for furniture animation frame cycling */
   furnitureAnimTimer = 0;
+  /** Agent Office: every mailbox shows its on state while a task is unseen. */
+  private mailboxLit = false;
   private _selectedAgentId: number | null = null;
   private readonly selectionListeners = new Set<(id: number | null) => void>();
   get selectedAgentId(): number | null {
@@ -839,6 +846,24 @@ export class OfficeState {
     }
   }
 
+  /** Light every mailbox (Agent Office): on while any task is unseen. */
+  setMailboxLit(lit: boolean): void {
+    if (this.mailboxLit === lit) return;
+    this.mailboxLit = lit;
+    this.rebuildFurnitureInstances();
+  }
+
+  /** Whether a mailbox covers the tile (clicking one opens the tasks). */
+  isMailboxAt(col: number, row: number): boolean {
+    return this.layout.furniture.some((item) => {
+      if (!isMailboxType(item.type)) return false;
+      const entry = getCatalogEntry(item.type);
+      const w = entry?.footprintW ?? 1;
+      const h = entry?.footprintH ?? 1;
+      return col >= item.col && col < item.col + w && row >= item.row && row < item.row + h;
+    });
+  }
+
   /** Rebuild furniture instances with auto-state applied (active agents turn electronics ON) */
   private rebuildFurnitureInstances(): void {
     // Collect tiles where active agents face desks
@@ -873,7 +898,7 @@ export class OfficeState {
       }
     }
 
-    if (autoOnTiles.size === 0) {
+    if (autoOnTiles.size === 0 && !this.mailboxLit) {
       this.furniture = layoutToFurnitureInstances(this.layout.furniture);
       return;
     }
@@ -883,10 +908,11 @@ export class OfficeState {
     const modifiedFurniture: PlacedFurniture[] = this.layout.furniture.map((item) => {
       const entry = getCatalogEntry(item.type);
       if (!entry) return item;
+      const lit = this.mailboxLit && isMailboxType(item.type);
       // Check if any tile of this furniture overlaps an auto-on tile
       for (let dr = 0; dr < entry.footprintH; dr++) {
         for (let dc = 0; dc < entry.footprintW; dc++) {
-          if (autoOnTiles.has(`${item.col + dc},${item.row + dr}`)) {
+          if (lit || autoOnTiles.has(`${item.col + dc},${item.row + dr}`)) {
             let onType = getOnStateType(item.type);
             if (onType !== item.type) {
               // Check if the on-state type has animation frames

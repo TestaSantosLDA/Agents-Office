@@ -5,6 +5,7 @@
  */
 
 import type { LaunchProfile } from '../../../core/src/provider.js';
+import type { AgentStateStore } from '../agentStateStore.js';
 import {
   findAgentDefinition,
   listAgentDefinitions,
@@ -111,4 +112,14 @@ export function prepareDefinitionLaunch(input: {
     profile: plan.profile,
     definitionName: definition.name,
   };
+}
+
+/** Live agents launched with the named Agent definition (for maxConcurrent). */
+export function countAgentsWithDefinition(store: AgentStateStore, definitionName: string): number {
+  const key = definitionName.toLowerCase();
+  let count = 0;
+  for (const [, agent] of store) {
+    if (agent.definitionName?.toLowerCase() === key) count++;
+  }
+  return count;
 }

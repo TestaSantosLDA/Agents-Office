@@ -22,6 +22,8 @@ interface BottomToolbarProps {
   onEditDirectory: (directory: Directory) => void;
   /** Agent definitions in the drawer (Agent Office). */
   agentDefinitionLaunch?: AgentDefinitionLaunch;
+  /** The Tasks button (Agent Office), with a count of unseen tasks. */
+  tasksButton?: { isOpen: boolean; unseen: number; onToggle: () => void };
   /** Standalone: server has a working PTY, so agents can be launched here. */
   terminalAvailable: boolean;
   /** Why the terminal is off (shown on the disabled button's tooltip). */
@@ -37,6 +39,7 @@ export function BottomToolbar({
   onAddDirectory,
   onEditDirectory,
   agentDefinitionLaunch,
+  tasksButton,
   terminalAvailable,
   terminalUnavailableReason,
 }: BottomToolbarProps) {
@@ -120,6 +123,16 @@ export function BottomToolbar({
             )}
           />
         </div>
+      )}
+      {tasksButton && (
+        <Button
+          variant={tasksButton.isOpen ? 'active' : 'default'}
+          onClick={tasksButton.onToggle}
+          title="Tasks"
+          data-testid="tasks-button"
+        >
+          Tasks{tasksButton.unseen > 0 ? ` (${tasksButton.unseen})` : ''}
+        </Button>
       )}
       <Button
         variant={isEditMode ? 'active' : 'default'}

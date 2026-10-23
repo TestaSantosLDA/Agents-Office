@@ -127,6 +127,12 @@ components:
         - $ref: '#/components/schemas/AgentDefinitionRejected'
         - $ref: '#/components/schemas/AgentLaunchRejected'
         - $ref: '#/components/schemas/LocalSkillsLoaded'
+        # Task queue and inboxes (Agent Office)
+        - $ref: '#/components/schemas/TasksLoaded'
+        - $ref: '#/components/schemas/TaskUpdated'
+        - $ref: '#/components/schemas/InboxesLoaded'
+        - $ref: '#/components/schemas/InboxRefreshed'
+        - $ref: '#/components/schemas/InboxRejected'
         # Terminal (standalone embedded terminal control plane)
         - $ref: '#/components/schemas/TerminalAvailability'
         - $ref: '#/components/schemas/TerminalSessionOpened'
@@ -166,6 +172,14 @@ components:
         - $ref: '#/components/schemas/SaveAgentDefinition'
         - $ref: '#/components/schemas/RemoveAgentDefinition'
         - $ref: '#/components/schemas/RequestLocalSkills'
+        - $ref: '#/components/schemas/SaveInbox'
+        - $ref: '#/components/schemas/RemoveInbox'
+        - $ref: '#/components/schemas/RefreshInbox'
+        - $ref: '#/components/schemas/CreateTask'
+        - $ref: '#/components/schemas/StartTask'
+        - $ref: '#/components/schemas/AssignTask'
+        - $ref: '#/components/schemas/MoveTask'
+        - $ref: '#/components/schemas/MarkTasksSeen'
         - $ref: '#/components/schemas/RequestDiagnostics'
       discriminator: type
 
@@ -955,6 +969,75 @@ components:
           items:
             $ref: '#/components/schemas/LocalSkill'
 
+    TasksLoaded:
+      description: |
+        Every task in the queue (`~/.pixel-agents/tasks.json`), oldest first.
+        Sent on connect.
+      type: object
+      additionalProperties: false
+      required: [type, tasks]
+      properties:
+        type:
+          const: tasksLoaded
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+
+    TaskUpdated:
+      description: A task was created or changed. Broadcast to every office.
+      type: object
+      additionalProperties: false
+      required: [type, task]
+      properties:
+        type:
+          const: taskUpdated
+        task:
+          $ref: '#/components/schemas/Task'
+
+    InboxesLoaded:
+      description: |
+        The configured inboxes, without their credentials. Sent on connect and
+        rebroadcast after every save or removal.
+      type: object
+      additionalProperties: false
+      required: [type, inboxes]
+      properties:
+        type:
+          const: inboxesLoaded
+        inboxes:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboxSummary'
+
+    InboxRefreshed:
+      description: |
+        A `refreshInbox` finished. `added` counts new tasks; `error` is set when
+        the fetch failed (nothing was added). Point-to-point to the requester.
+      type: object
+      additionalProperties: false
+      required: [type, inboxId, added]
+      properties:
+        type:
+          const: inboxRefreshed
+        inboxId:
+          type: string
+        added:
+          type: integer
+        error:
+          type: string
+
+    InboxRejected:
+      description: A `saveInbox` or `removeInbox` failed validation or could not be written. Point-to-point.
+      type: object
+      additionalProperties: false
+      required: [type, reason]
+      properties:
+        type:
+          const: inboxRejected
+        reason:
+          type: string
+
     DirectorySuggestions:
       description: |
         Candidate paths for the Directory modal, recovered from the working
@@ -1426,6 +1509,107 @@ components:
         type:
           const: requestLocalSkills
 
+    SaveInbox:
+      description: |
+        Create or replace an inbox. `inbox.id` names the one being edited; a
+        missing or empty `apiToken` keeps the stored token. The token is
+        stored host-side (mode 0600) and never sent back to any office.
+      type: object
+      additionalProperties: false
+      required: [type, inbox]
+      properties:
+        type:
+          const: saveInbox
+        inbox:
+          $ref: '#/components/schemas/InboxInput'
+
+    RemoveInbox:
+      description: Delete an inbox and its stored token. Its tasks stay in the queue.
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type:
+          const: removeInbox
+        id:
+          type: string
+
+    RefreshInbox:
+      description: |
+        Fetch the inbox once (Jira: issues assigned to the token's user, key and
+        summary only). New keys become tasks; the very first refresh marks them
+        pre-existing so they wait for a click. Replies `inboxRefreshed`.
+      type: object
+      additionalProperties: false
+      required: [type, inboxId]
+      properties:
+        type:
+          const: refreshInbox
+        inboxId:
+          type: string
+
+    CreateTask:
+      description: Type a task by hand (the plain inbox). It starts through the pipeline at once.
+      type: object
+      additionalProperties: false
+      required: [type, summary]
+      properties:
+        type:
+          const: createTask
+        summary:
+          type: string
+        description:
+          type: string
+        directoryPath:
+          type: string
+          description: Directory the work belongs to. Absent = the assigned agent's first Directory.
+
+    StartTask:
+      description: Release a held task (pre-existing, or stopped by an error) into the pipeline.
+      type: object
+      additionalProperties: false
+      required: [type, taskId]
+      properties:
+        type:
+          const: startTask
+        taskId:
+          type: string
+
+    AssignTask:
+      description: 'Skip triage and routing and hand the task to this Agent definition now.'
+      type: object
+      additionalProperties: false
+      required: [type, taskId, definitionName]
+      properties:
+        type:
+          const: assignTask
+        taskId:
+          type: string
+        definitionName:
+          type: string
+
+    MoveTask:
+      description: Put a task in a state by hand (e.g. review → done). Nothing is launched or stopped.
+      type: object
+      additionalProperties: false
+      required: [type, taskId, state]
+      properties:
+        type:
+          const: moveTask
+        taskId:
+          type: string
+        state:
+          $ref: '#/components/schemas/TaskState'
+
+    MarkTasksSeen:
+      description: The mailbox was opened; every task counts as seen and the mailbox stops flashing.
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          const: markTasksSeen
+
     RequestDirectorySuggestions:
       description: >-
         Ask the host for tappable path suggestions for the Directory modal; it
@@ -1580,6 +1764,123 @@ components:
       description: Where a LocalSkill was found, `~/.claude/skills` (user) or a Directory's `.claude/skills`.
       type: string
       enum: [user, directory]
+
+    Task:
+      description: |
+        One unit of work in the queue: a Jira ticket or a typed task, and where
+        it is in the pipeline (inbox → triage → routing → working → review → done).
+      type: object
+      additionalProperties: false
+      required: [id, source, summary, state, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          description: The ticket key for Jira tasks (e.g. LOK-123), `task-<n>` for typed ones.
+        source:
+          $ref: '#/components/schemas/TaskSource'
+        inboxId:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+          description: Typed tasks only. Jira tasks carry no description; agents read it through the Jira MCP.
+        url:
+          type: string
+        directoryPath:
+          type: string
+        state:
+          $ref: '#/components/schemas/TaskState'
+        hold:
+          type: boolean
+          description: The pipeline leaves this task alone until `startTask` (pre-existing tickets, errors).
+        running:
+          type: string
+          description: The step running right now, `triage` or `routing`, while its headless run is in flight.
+        triage:
+          type: string
+          description: The triage agent's output, read by the router and handed to the worker.
+        assignee:
+          type: string
+          description: Agent definition chosen by the router (or by hand).
+        dispatchNote:
+          type: string
+          description: The router's one-line reason, shown on the ticket.
+        flagged:
+          type: boolean
+          description: No specialist fit; went to the generalist or is waiting for a manual pick.
+        agentId:
+          type: integer
+          description: The agent working on it, while `working`.
+        attention:
+          type: string
+          description: Why this task needs a human (an error, no agent fits, the agent closed).
+        seen:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    TaskSource:
+      type: string
+      enum: [jira, manual]
+
+    TaskState:
+      type: string
+      enum: [inbox, triage, routing, working, review, done]
+
+    InboxSummary:
+      description: An inbox as offices see it, never with its token.
+      type: object
+      additionalProperties: false
+      required: [id, name, provider, hasToken]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        provider:
+          $ref: '#/components/schemas/InboxProvider'
+        baseUrl:
+          type: string
+        email:
+          type: string
+        jql:
+          type: string
+        directoryPath:
+          type: string
+        hasToken:
+          type: boolean
+        lastRefreshAt:
+          type: string
+
+    InboxInput:
+      description: What an office sends to create or edit an inbox.
+      type: object
+      additionalProperties: false
+      required: [name, provider]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        provider:
+          $ref: '#/components/schemas/InboxProvider'
+        baseUrl:
+          type: string
+        email:
+          type: string
+        apiToken:
+          type: string
+        jql:
+          type: string
+        directoryPath:
+          type: string
+
+    InboxProvider:
+      type: string
+      enum: [jira]
 
     DirectorySource:
       description: |

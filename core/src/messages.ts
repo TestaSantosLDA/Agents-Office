@@ -48,6 +48,11 @@ export type ServerMessage =
   | AgentDefinitionRejected
   | AgentLaunchRejected
   | LocalSkillsLoaded
+  | TasksLoaded
+  | TaskUpdated
+  | InboxesLoaded
+  | InboxRefreshed
+  | InboxRejected
   | TerminalAvailability
   | TerminalSessionOpened
   | TerminalSessionClosed
@@ -83,6 +88,14 @@ export type ClientMessage =
   | SaveAgentDefinition
   | RemoveAgentDefinition
   | RequestLocalSkills
+  | SaveInbox
+  | RemoveInbox
+  | RefreshInbox
+  | CreateTask
+  | StartTask
+  | AssignTask
+  | MoveTask
+  | MarkTasksSeen
   | RequestDiagnostics;
 
 export interface ProviderCapabilities {
@@ -414,6 +427,73 @@ export interface LocalSkill {
 
 export type LocalSkillSource = 'user' | 'directory';
 
+export interface TasksLoaded {
+  type: 'tasksLoaded';
+  tasks: Task[];
+}
+
+export interface Task {
+  id: string;
+  source: TaskSource;
+  inboxId?: string;
+  summary: string;
+  description?: string;
+  url?: string;
+  directoryPath?: string;
+  state: TaskState;
+  hold?: boolean;
+  running?: string;
+  triage?: string;
+  assignee?: string;
+  dispatchNote?: string;
+  flagged?: boolean;
+  agentId?: number;
+  attention?: string;
+  seen?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TaskSource = 'jira' | 'manual';
+
+export type TaskState = 'inbox' | 'triage' | 'routing' | 'working' | 'review' | 'done';
+
+export interface TaskUpdated {
+  type: 'taskUpdated';
+  task: Task;
+}
+
+export interface InboxesLoaded {
+  type: 'inboxesLoaded';
+  inboxes: InboxSummary[];
+}
+
+export interface InboxSummary {
+  id: string;
+  name: string;
+  provider: InboxProvider;
+  baseUrl?: string;
+  email?: string;
+  jql?: string;
+  directoryPath?: string;
+  hasToken: boolean;
+  lastRefreshAt?: string;
+}
+
+export type InboxProvider = 'jira';
+
+export interface InboxRefreshed {
+  type: 'inboxRefreshed';
+  inboxId: string;
+  added: number;
+  error?: string;
+}
+
+export interface InboxRejected {
+  type: 'inboxRejected';
+  reason: string;
+}
+
 export interface TerminalAvailability {
   type: 'terminalAvailability';
   available: boolean;
@@ -586,6 +666,60 @@ export interface RemoveAgentDefinition {
 
 export interface RequestLocalSkills {
   type: 'requestLocalSkills';
+}
+
+export interface SaveInbox {
+  type: 'saveInbox';
+  inbox: InboxInput;
+}
+
+export interface InboxInput {
+  id?: string;
+  name: string;
+  provider: InboxProvider;
+  baseUrl?: string;
+  email?: string;
+  apiToken?: string;
+  jql?: string;
+  directoryPath?: string;
+}
+
+export interface RemoveInbox {
+  type: 'removeInbox';
+  id: string;
+}
+
+export interface RefreshInbox {
+  type: 'refreshInbox';
+  inboxId: string;
+}
+
+export interface CreateTask {
+  type: 'createTask';
+  summary: string;
+  description?: string;
+  directoryPath?: string;
+}
+
+export interface StartTask {
+  type: 'startTask';
+  taskId: string;
+}
+
+export interface AssignTask {
+  type: 'assignTask';
+  taskId: string;
+  definitionName: string;
+}
+
+export interface MoveTask {
+  type: 'moveTask';
+  taskId: string;
+  state: TaskState;
+}
+
+export interface MarkTasksSeen {
+  type: 'markTasksSeen';
 }
 
 export interface RequestDiagnostics {
