@@ -1,0 +1,176 @@
+{
+  "id": "MAILBOX",
+  "name": "Mailbox",
+  "category": "electronics",
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "3-way-mirror",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 1,
+  "members": [
+    {
+      "type": "group",
+      "groupType": "state",
+      "orientation": "front",
+      "members": [
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "MAILBOX_FRONT_ON_1",
+              "file": "MAILBOX_FRONT_ON_1.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "MAILBOX_FRONT_ON_2",
+              "file": "MAILBOX_FRONT_ON_2.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "MAILBOX_FRONT_ON_3",
+              "file": "MAILBOX_FRONT_ON_3.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 2
+            }
+          ]
+        },
+        {
+          "type": "asset",
+          "id": "MAILBOX_FRONT_OFF",
+          "file": "MAILBOX_FRONT_OFF.png",
+          "width": 16,
+          "height": 32,
+          "footprintW": 1,
+          "footprintH": 2,
+          "state": "off"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "groupType": "state",
+      "orientation": "back",
+      "members": [
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "MAILBOX_BACK_ON_1",
+              "file": "MAILBOX_BACK_ON_1.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "MAILBOX_BACK_ON_2",
+              "file": "MAILBOX_BACK_ON_2.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "MAILBOX_BACK_ON_3",
+              "file": "MAILBOX_BACK_ON_3.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 2
+            }
+          ]
+        },
+        {
+          "type": "asset",
+          "id": "MAILBOX_BACK_OFF",
+          "file": "MAILBOX_BACK_OFF.png",
+          "width": 16,
+          "height": 32,
+          "footprintW": 1,
+          "footprintH": 2,
+          "state": "off"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "groupType": "state",
+      "orientation": "side",
+      "mirrorSide": true,
+      "members": [
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "MAILBOX_SIDE_ON_1",
+              "file": "MAILBOX_SIDE_ON_1.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "MAILBOX_SIDE_ON_2",
+              "file": "MAILBOX_SIDE_ON_2.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "MAILBOX_SIDE_ON_3",
+              "file": "MAILBOX_SIDE_ON_3.png",
+              "width": 16,
+              "height": 32,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 2
+            }
+          ]
+        },
+        {
+          "type": "asset",
+          "id": "MAILBOX_SIDE_OFF",
+          "file": "MAILBOX_SIDE_OFF.png",
+          "width": 16,
+          "height": 32,
+          "footprintW": 1,
+          "footprintH": 2,
+          "state": "off"
+        }
+      ]
+    }
+  ]
+}
