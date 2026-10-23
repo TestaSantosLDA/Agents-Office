@@ -106,14 +106,34 @@ function buildLaunchCommand(
 ): { command: string; args: string[]; env?: Record<string, string> } {
   const args = ['--session-id', sessionId];
   if (opts?.bypassPermissions) args.push('--dangerously-skip-permissions');
-  const profile = opts?.profile;
+  args.push(...profileArgs(opts?.profile));
+  // Positional, so it goes last: Claude starts the session with it as the
+  // first user turn.
+  if (opts?.profile?.initialPrompt) args.push(opts.profile.initialPrompt);
+  return { command: 'claude', args, env: { PWD: cwd } };
+}
+
+/** `claude -p`: one turn, printed to stdout, then exit. */
+function buildHeadlessCommand(
+  prompt: string,
+  cwd: string,
+  opts?: { bypassPermissions?: boolean; profile?: LaunchProfile },
+): { command: string; args: string[]; env?: Record<string, string> } {
+  const args = ['-p', prompt];
+  if (opts?.bypassPermissions) args.push('--dangerously-skip-permissions');
+  args.push(...profileArgs(opts?.profile));
+  return { command: 'claude', args, env: { PWD: cwd } };
+}
+
+function profileArgs(profile: LaunchProfile | undefined): string[] {
+  const args: string[] = [];
   if (profile?.model) args.push('--model', profile.model);
-  // --tools restricts the built-in set; it is variadic, so it takes one
-  // comma-joined value to keep it from swallowing the flags after it.
-  if (profile?.tools && profile.tools.length > 0) args.push('--tools', profile.tools.join(','));
+  // --tools is variadic: the `=` form keeps it from swallowing what follows
+  // (a positional prompt in particular).
+  if (profile?.tools && profile.tools.length > 0) args.push(`--tools=${profile.tools.join(',')}`);
   for (const dir of profile?.pluginDirs ?? []) args.push('--plugin-dir', dir);
   if (profile?.appendSystemPrompt) args.push('--append-system-prompt', profile.appendSystemPrompt);
-  return { command: 'claude', args, env: { PWD: cwd } };
+  return args;
 }
 
 /** Root that holds every Claude session across all workspaces. Used by the
@@ -321,6 +341,7 @@ export const claudeProvider: HookProvider = {
   getAllSessionRoots,
   sessionFilePattern: '*.jsonl',
   buildLaunchCommand,
+  buildHeadlessCommand,
 
   team: claudeTeamProvider,
 };

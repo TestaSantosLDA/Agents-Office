@@ -5,6 +5,7 @@ import { buildAgentDiagnostics } from './agentDiagnostics.js';
 import type { AgentRuntime } from './agentRuntime.js';
 import {
   agentDefinitionsLoadedMessage,
+  countAgentsWithDefinition,
   handleAgentDefinitionClientMessage,
   prepareDefinitionLaunch,
 } from './agents/agentMessages.js';
@@ -31,6 +32,8 @@ import type { ConsentEffects } from './providers/hook/consentExecutor.js';
 import { applyConsentChoice } from './providers/hook/consentExecutor.js';
 import { hooksConsentRequest } from './providers/hook/consentGate.js';
 import { claudeProvider, hookProviderById, hookProviders } from './providers/index.js';
+import type { TaskEngine } from './tasks/taskEngine.js';
+import { handleTaskClientMessage, taskSnapshotMessages } from './tasks/taskPipeline.js';
 import type { PtySessionManager } from './terminal/ptySessionManager.js';
 import { launchStandaloneAgent } from './terminal/standaloneAgentLauncher.js';
 
@@ -80,6 +83,8 @@ export interface ClientMessageContext {
   /** PTY terminals for standalone-launched agents. Absent in VS Code embedded
    *  mode, where the editor owns terminal lifecycle. */
   ptyManager?: PtySessionManager;
+  /** The task queue (standalone only; absent in VS Code embedded mode). */
+  tasks?: TaskEngine;
 }
 
 // ── Setting key constants (mirror adapters/vscode/constants.ts) ──
@@ -106,16 +111,6 @@ function hostDirectoriesFor(ctx: ClientMessageContext): HostDirectoryEntry[] {
 /** Every Directory, shown or not, as a place local skills may live. */
 function skillDirectoriesFor(ctx: ClientMessageContext): SkillDirectory[] {
   return listDirectories(hostDirectoriesFor(ctx)).map((d) => ({ name: d.name, path: d.path }));
-}
-
-/** Live agents launched with the named Agent definition (for maxConcurrent). */
-function countAgentsWithDefinition(store: AgentStateStore, definitionName: string): number {
-  const key = definitionName.toLowerCase();
-  let count = 0;
-  for (const [, agent] of store) {
-    if (agent.definitionName?.toLowerCase() === key) count++;
-  }
-  return count;
 }
 
 /**
@@ -403,6 +398,23 @@ export function handleClientMessage(
       });
       break;
 
+    case 'saveInbox':
+    case 'removeInbox':
+    case 'refreshInbox':
+    case 'createTask':
+    case 'startTask':
+    case 'assignTask':
+    case 'moveTask':
+    case 'markTasksSeen':
+      if (ctx.tasks) {
+        handleTaskClientMessage(msg, {
+          engine: ctx.tasks,
+          broadcast: (message) => store.broadcast(message),
+          reply: send,
+        });
+      }
+      break;
+
     case 'saveAgentDefinition':
     case 'removeAgentDefinition':
     case 'requestLocalSkills':
@@ -633,6 +645,12 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     // 4d. Agent definitions: launching with one is standalone-only, like the
     // Directories it launches into.
     send(agentDefinitionsLoadedMessage());
+  }
+
+  // 4e. The task queue and its inboxes. Ticket text stays off read-only
+  // offices, like every taskUpdated broadcast (httpServer filters those).
+  if (ctx.tasks && ctx.privileged) {
+    for (const message of taskSnapshotMessages(ctx.tasks)) send(message);
   }
 
   // Sync runtime refs with the persisted settings so scanners behave correctly

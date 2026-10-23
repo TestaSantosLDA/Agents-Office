@@ -34,6 +34,7 @@ import {
 import { FileStateAdapter } from './fileStateAdapter.js';
 import { claudeProvider, copyHookScript, hookProviderById } from './providers/index.js';
 import { PixelAgentsServer } from './server.js';
+import { createTaskPipeline } from './tasks/taskPipeline.js';
 import { PtySessionManager } from './terminal/ptySessionManager.js';
 import { isLoopbackHost, normalizeHostname } from './wsAuth.js';
 
@@ -339,6 +340,7 @@ async function main(): Promise<void> {
       onSetHooksEnabled,
       onReloadAssets,
       ptyManager,
+      tasks: createTaskPipeline({ store, runtime, ptyManager }),
       allowedHosts: args.allowedHosts,
       rotateToken: args.rotateToken,
     });

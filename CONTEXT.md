@@ -56,6 +56,18 @@ _Avoid_: inline teammate, tmux teammate, session teammate (former run-style dist
 A named, reusable profile an agent can be launched with: its role and what it is best at, its skills, tools and model, the Directories it may work in, and how many may run at once. Stored as YAML in `~/.pixel-agents/agents/`. Launching with a definition still creates an ordinary Agent; the definition is the template, never the session. A router is an Agent definition like any other.
 _Avoid_: persona, template (as a noun for this), role (that is one field of it), agent type
 
+**Task**:
+One piece of work in the queue: a Jira ticket brought in by an Inbox, or one typed in the office. It moves inbox → triage → routing → working → review → done. While working it points at the Agent doing it; the Task outlives that Agent's session.
+_Avoid_: ticket (that is the Jira side), job, issue
+
+**Inbox**:
+Where Tasks come from besides typing them. v1 has one kind, a Jira inbox: a site, an account and an optional filter, fetched only when its Refresh button is clicked. Every mailbox in the office shows the combined inbox.
+_Avoid_: feed, source (that is a Task field)
+
+**Router**:
+The Agent definition with role `router`. Given a Task, its triage and the index of the other definitions, it names the one to dispatch. Pipeline roles (`router`, `triage`, `reviewer`) are never routed to.
+_Avoid_: dispatcher (that is the code that launches the pick and keeps the cap)
+
 ## Agent Lifecycle
 
 **Launch**:

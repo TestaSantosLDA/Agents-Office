@@ -11,9 +11,11 @@ import { ConnectionIndicator } from './components/ConnectionIndicator.js';
 import { DebugView } from './components/DebugView.js';
 import { DirectoryModal } from './components/DirectoryModal.js';
 import { EditActionBar } from './components/EditActionBar.js';
+import { InboxModal } from './components/InboxModal.js';
 import { IntroBubble } from './components/IntroBubble.js';
 import { MigrationNotice } from './components/MigrationNotice.js';
 import { SettingsModal } from './components/SettingsModal.js';
+import { TasksPanel } from './components/TasksPanel.js';
 import { TerminalDrawer } from './components/TerminalDrawer.js';
 import { Tooltip } from './components/Tooltip.js';
 import { Button } from './components/ui/Button.js';
@@ -30,6 +32,7 @@ import { useExtensionMessages } from './hooks/useExtensionMessages.js';
 import { useIntroTour } from './hooks/useIntroTour.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { useKeyboardViewport } from './hooks/useKeyboardViewport.js';
+import { useTasks } from './hooks/useTasks.js';
 import { useTerminalDrawer } from './hooks/useTerminalDrawer.js';
 import { MobileShell } from './mobile/MobileShell.js';
 import { useMobileShell } from './mobile/useMobileShell.js';
@@ -77,6 +80,9 @@ function App() {
   }, []);
 
   const editor = useEditorActions(getOfficeState, editorState);
+  // Subscribed before useExtensionMessages sends webviewReady, so the
+  // tasksLoaded answer always finds it listening.
+  const tasks = useTasks();
 
   const isEditDirty = useCallback(
     () => editor.isEditMode && editor.isDirty,
@@ -140,6 +146,7 @@ function App() {
 
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [isHooksInfoOpen, setIsHooksInfoOpen] = useState(false);
   const [hooksTooltipDismissed, setHooksTooltipDismissed] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
@@ -408,6 +415,22 @@ function App() {
 
   const officeState = getOfficeState();
 
+  // The task queue needs the standalone launcher: a tokened office with a
+  // terminal. Its mailboxes light up while any task is unseen.
+  const tasksEnabled = terminalAvailable && !officeReadOnly;
+  const tasksUnseen = tasksEnabled && tasks.unseenCount > 0;
+  useEffect(() => {
+    getOfficeState().setMailboxLit(tasksUnseen);
+  }, [tasksUnseen]);
+  const openTasks = useCallback(() => setIsTasksOpen(true), []);
+  const openTaskAgent = useCallback(
+    (agentId: number) => {
+      setIsTasksOpen(false);
+      handleClick(agentId);
+    },
+    [handleClick],
+  );
+
   // Merged set of Directories the Areas dropdown can map: host-contributed ones plus
   // every distinct Directory an agent has run in this session (deduped by name; name
   // is the areaMappings key / seat-bias identity, path is only the React list key).
@@ -531,6 +554,7 @@ function App() {
         showAreas={effectiveShowAreas}
         activeAreaLabel={activeAreaLabel}
         tapSelectsFirst={isMobile}
+        onMailboxClick={tasksEnabled ? openTasks : undefined}
       />
 
       {!isDebugMode ? (
@@ -682,6 +706,15 @@ function App() {
           onAddDirectory={directoryEditor.add}
           onEditDirectory={directoryEditor.edit}
           agentDefinitionLaunch={agentDefinitionLaunch}
+          tasksButton={
+            tasksEnabled
+              ? {
+                  isOpen: isTasksOpen,
+                  unseen: tasks.unseenCount,
+                  onToggle: () => setIsTasksOpen((v) => !v),
+                }
+              : undefined
+          }
           terminalAvailable={terminalAvailable}
           terminalUnavailableReason={terminalUnavailableReason}
         />
@@ -690,7 +723,7 @@ function App() {
       {/* Mobile: Settings floats top-left (the layout editor stays desktop-
             only — its tools are drag/hover-driven). */}
       {isMobile && !isDebugMode && !officeReadOnly && (
-        <div className="absolute mobile-safe-top left-8 z-20">
+        <div className="absolute mobile-safe-top left-8 z-20 flex gap-4">
           <Button
             size="sm"
             variant={isSettingsOpen ? 'active' : 'default'}
@@ -699,6 +732,16 @@ function App() {
           >
             Settings
           </Button>
+          {tasksEnabled && (
+            <Button
+              size="sm"
+              variant={isTasksOpen ? 'active' : 'default'}
+              className="border-border! shadow-pixel"
+              onClick={() => setIsTasksOpen((v) => !v)}
+            >
+              Tasks{tasks.unseenCount > 0 ? ` (${tasks.unseenCount})` : ''}
+            </Button>
+          )}
         </div>
       )}
 
@@ -852,6 +895,23 @@ function App() {
         onSubmit={directoryEditor.submit}
         onDelete={directoryEditor.remove}
         onClose={directoryEditor.close}
+      />
+      <TasksPanel
+        isOpen={isTasksOpen && tasksEnabled}
+        onClose={() => setIsTasksOpen(false)}
+        tasks={tasks}
+        definitions={agentDefinitions}
+        directories={directories}
+        onOpenAgent={openTaskAgent}
+      />
+      <InboxModal
+        isOpen={tasks.inboxModal.open}
+        editing={tasks.inboxModal.editing}
+        error={tasks.inboxError}
+        directories={directories}
+        onSubmit={tasks.saveInbox}
+        onDelete={tasks.removeInbox}
+        onClose={tasks.closeInbox}
       />
       <AgentDefinitionModal
         isOpen={agentDefinitionEditor.modal.open}
