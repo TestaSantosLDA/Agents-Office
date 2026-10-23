@@ -8,6 +8,7 @@
 import { spawn } from 'child_process';
 
 import type { HookProvider, LaunchProfile } from '../../../core/src/provider.js';
+import { resolveSpawnCommand } from '../terminal/windowsCommand.js';
 
 /** Long enough for a triage that follows Confluence and Figma links. */
 export const HEADLESS_RUN_TIMEOUT_MS = 15 * 60 * 1000;
@@ -48,7 +49,9 @@ export function createHeadlessRunner(
       };
       let child;
       try {
-        child = spawn(command.command, command.args, {
+        // Windows: unwraps an npm .cmd shim, which spawn cannot start.
+        const resolved = resolveSpawnCommand(command.command, command.args);
+        child = spawn(resolved.command, resolved.args, {
           cwd,
           env: { ...process.env, ...command.env },
           stdio: ['ignore', 'pipe', 'pipe'],
