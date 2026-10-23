@@ -22,6 +22,9 @@ export interface AgentState {
   hadToolsInTurn: boolean;
   /** Directory name — the agent's origin label (only set for multi-root workspaces) */
   directoryName?: string;
+  /** Agent definition this agent was launched with (Agent Office). Not to be
+   *  confused with `agentName`, which is a teammate's name. */
+  definitionName?: string;
   /** Timestamp of last JSONL data received (ms since epoch) */
   lastDataAt: number;
   /** Total JSONL lines processed for this agent */

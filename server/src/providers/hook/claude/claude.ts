@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { normalizeProjectPath } from '../../../../../core/src/normalizeProjectPath.js';
-import type { AgentEvent, HookProvider } from '../../../../../core/src/provider.js';
+import type { AgentEvent, HookProvider, LaunchProfile } from '../../../../../core/src/provider.js';
 import {
   BASH_COMMAND_DISPLAY_MAX_LENGTH,
   TASK_DESCRIPTION_DISPLAY_MAX_LENGTH,
@@ -102,10 +102,17 @@ function getSessionDirs(workspacePath: string): string[] {
 function buildLaunchCommand(
   sessionId: string,
   cwd: string,
-  opts?: { bypassPermissions?: boolean },
+  opts?: { bypassPermissions?: boolean; profile?: LaunchProfile },
 ): { command: string; args: string[]; env?: Record<string, string> } {
   const args = ['--session-id', sessionId];
   if (opts?.bypassPermissions) args.push('--dangerously-skip-permissions');
+  const profile = opts?.profile;
+  if (profile?.model) args.push('--model', profile.model);
+  // --tools restricts the built-in set; it is variadic, so it takes one
+  // comma-joined value to keep it from swallowing the flags after it.
+  if (profile?.tools && profile.tools.length > 0) args.push('--tools', profile.tools.join(','));
+  for (const dir of profile?.pluginDirs ?? []) args.push('--plugin-dir', dir);
+  if (profile?.appendSystemPrompt) args.push('--append-system-prompt', profile.appendSystemPrompt);
   return { command: 'claude', args, env: { PWD: cwd } };
 }
 

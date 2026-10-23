@@ -11,6 +11,10 @@ import { isTypingInTerminal } from '../terminal/terminalDom.js';
 import { findTouch, withinTapSlop } from '../touch/touchPrimitives.js';
 import type { AgentAppearance, TabStatus } from './AgentCard.js';
 import { AgentCard } from './AgentCard.js';
+import {
+  type AgentDefinitionLaunch,
+  closingAgentDefinitionLaunch,
+} from './agentDefinitionLaunch.js';
 import { cardVariant, mergeOrder, reorderByPointer } from './cardBar.js';
 import { LaunchDrawer } from './LaunchDrawer.js';
 
@@ -32,6 +36,8 @@ interface MobileAgentBarProps {
   onAddDirectory: () => void;
   /** Pencil on a user-defined row — opens the modal pre-filled. */
   onEditDirectory: (directory: Directory) => void;
+  /** Agent definitions in the launch drawer (Agent Office). */
+  agentDefinitionLaunch?: AgentDefinitionLaunch;
   /** False when the server has no working PTY — the + card shows disabled. */
   canLaunch: boolean;
   launchUnavailableReason: string | null;
@@ -88,6 +94,7 @@ export function MobileAgentBar({
   directories,
   onAddDirectory,
   onEditDirectory,
+  agentDefinitionLaunch,
   canLaunch,
   launchUnavailableReason,
   getAppearance,
@@ -311,6 +318,9 @@ export function MobileAgentBar({
               setIsLaunchDrawerOpen(false);
               onEditDirectory(directory);
             }}
+            agentDefinitionLaunch={closingAgentDefinitionLaunch(agentDefinitionLaunch, () =>
+              setIsLaunchDrawerOpen(false),
+            )}
           />
         </div>
         <div

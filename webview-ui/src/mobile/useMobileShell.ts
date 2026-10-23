@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import type { AgentDefinition } from '../../../core/src/messages.js';
 import type { Directory } from '../hooks/useExtensionMessages.js';
 import type { TerminalDrawerController } from '../hooks/useTerminalDrawer.js';
 import type { OfficeState } from '../office/engine/officeState.js';
@@ -17,6 +18,8 @@ export interface MobileShellController {
   /** A Directory picked from the + card's drawer: launch into it, then
    *  slide over once the new terminal appears. */
   launch: (directory: Directory) => void;
+  /** An Agent definition picked from the same drawer; slides over the same way. */
+  launchDefinition: (definition: AgentDefinition) => void;
 }
 
 interface MobileShellInputs {
@@ -25,6 +28,7 @@ interface MobileShellInputs {
   drawer: TerminalDrawerController;
   focusedAgentId: number | null;
   launchAgent: (directory: Directory) => void;
+  launchAgentDefinition: (definition: AgentDefinition) => void;
 }
 
 /**
@@ -39,6 +43,7 @@ export function useMobileShell({
   drawer,
   focusedAgentId,
   launchAgent,
+  launchAgentDefinition,
 }: MobileShellInputs): MobileShellController {
   const [view, setView] = useState<MobileView>('office');
   const { reveal, lastOpened } = drawer;
@@ -59,6 +64,14 @@ export function useMobileShell({
       launchAgent(directory);
     },
     [launchAgent],
+  );
+
+  const launchDefinition = useCallback(
+    (definition: AgentDefinition) => {
+      pendingLaunchRef.current = true;
+      launchAgentDefinition(definition);
+    },
+    [launchAgentDefinition],
   );
 
   const showTerminal = useCallback(() => setView('terminal'), []);
@@ -105,5 +118,5 @@ export function useMobileShell({
     [getOfficeState, terminalAgentIds, view, reveal],
   );
 
-  return { view, showTerminal, toggleView, selectCard, launch };
+  return { view, showTerminal, toggleView, selectCard, launch, launchDefinition };
 }

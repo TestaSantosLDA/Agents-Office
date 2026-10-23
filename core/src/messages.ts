@@ -43,6 +43,11 @@ export type ServerMessage =
   | DirectorySaved
   | DirectoryRejected
   | DirectorySuggestions
+  | AgentDefinitionsLoaded
+  | AgentDefinitionSaved
+  | AgentDefinitionRejected
+  | AgentLaunchRejected
+  | LocalSkillsLoaded
   | TerminalAvailability
   | TerminalSessionOpened
   | TerminalSessionClosed
@@ -75,6 +80,9 @@ export type ClientMessage =
   | SaveDirectory
   | RemoveDirectory
   | RequestDirectorySuggestions
+  | SaveAgentDefinition
+  | RemoveAgentDefinition
+  | RequestLocalSkills
   | RequestDiagnostics;
 
 export interface ProviderCapabilities {
@@ -87,6 +95,7 @@ export interface AgentCreated {
   type: 'agentCreated';
   id: number;
   directoryName?: string;
+  definitionName?: string;
   isExternal?: boolean;
   palette?: number;
   hueShift?: number;
@@ -108,6 +117,7 @@ export interface ExistingAgents {
   agentMeta: Record<string, AgentSeatMeta>;
   directoryNames: Record<string, string>;
   externalAgents: Record<string, boolean>;
+  definitionNames?: Record<string, string>;
 }
 
 export interface AgentSeatMeta {
@@ -354,6 +364,56 @@ export interface DirectorySuggestions {
   paths: string[];
 }
 
+export interface AgentDefinitionsLoaded {
+  type: 'agentDefinitionsLoaded';
+  definitions: AgentDefinition[];
+}
+
+export interface AgentDefinition {
+  name: string;
+  role: string;
+  bestAt?: string;
+  tags?: string[];
+  skills?: string[];
+  tools?: string[];
+  model?: string;
+  maxConcurrent?: number;
+  directories?: string[];
+  prompt?: string;
+}
+
+export interface AgentDefinitionSaved {
+  type: 'agentDefinitionSaved';
+  definition: AgentDefinition;
+}
+
+export interface AgentDefinitionRejected {
+  type: 'agentDefinitionRejected';
+  name: string;
+  reason: string;
+}
+
+export interface AgentLaunchRejected {
+  type: 'agentLaunchRejected';
+  definitionName: string;
+  reason: string;
+}
+
+export interface LocalSkillsLoaded {
+  type: 'localSkillsLoaded';
+  skills: LocalSkill[];
+}
+
+export interface LocalSkill {
+  name: string;
+  description?: string;
+  path: string;
+  source: LocalSkillSource;
+  directoryName?: string;
+}
+
+export type LocalSkillSource = 'user' | 'directory';
+
 export interface TerminalAvailability {
   type: 'terminalAvailability';
   available: boolean;
@@ -383,6 +443,7 @@ export interface WebviewReady {
 export interface LaunchAgent {
   type: 'launchAgent';
   directoryPath?: string;
+  definitionName?: string;
 }
 
 export interface FocusAgent {
@@ -510,6 +571,21 @@ export interface RemoveDirectory {
 
 export interface RequestDirectorySuggestions {
   type: 'requestDirectorySuggestions';
+}
+
+export interface SaveAgentDefinition {
+  type: 'saveAgentDefinition';
+  definition: AgentDefinition;
+  previousName?: string;
+}
+
+export interface RemoveAgentDefinition {
+  type: 'removeAgentDefinition';
+  name: string;
+}
+
+export interface RequestLocalSkills {
+  type: 'requestLocalSkills';
 }
 
 export interface RequestDiagnostics {

@@ -224,6 +224,7 @@ function registerWebSocketRoute(
         type: 'agentCreated',
         id,
         directoryName: agent.directoryName,
+        definitionName: agent.definitionName,
         isExternal: agent.isExternal || undefined,
         isTeammate: agent.leadAgentId !== undefined || undefined,
         teammateName: agent.agentName,

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
+import type { AgentDefinition } from '../../core/src/messages.js';
 import { toMajorMinor } from './changelogData.js';
 import { AgentCardBar } from './components/AgentCardBar.js';
+import type { AgentDefinitionLaunch } from './components/agentDefinitionLaunch.js';
+import { AgentDefinitionModal } from './components/AgentDefinitionModal.js';
 import { BottomToolbar } from './components/BottomToolbar.js';
 import { ChangelogModal } from './components/ChangelogModal.js';
 import { ConnectionIndicator } from './components/ConnectionIndicator.js';
@@ -17,7 +20,8 @@ import { Button } from './components/ui/Button.js';
 import { Modal } from './components/ui/Modal.js';
 import { VersionIndicator } from './components/VersionIndicator.js';
 import { ZoomControls } from './components/ZoomControls.js';
-import { OFFICE_CANVAS_TEST_ID } from './constants.js';
+import { LAUNCH_NOTICE_MS, OFFICE_CANVAS_TEST_ID } from './constants.js';
+import { useAgentDefinitionEditor } from './hooks/useAgentDefinitionEditor.js';
 import { useDirectoryEditor } from './hooks/useDirectoryEditor.js';
 import { useEditorActions } from './hooks/useEditorActions.js';
 import { useEditorKeyboard } from './hooks/useEditorKeyboard.js';
@@ -96,6 +100,12 @@ function App() {
     directorySaved,
     directorySuggestions,
     agentDirectoryNames,
+    agentDefinitions,
+    agentDefinitionSaved,
+    agentDefinitionRejection,
+    agentLaunchRejection,
+    localSkills,
+    agentDefinitionNames,
     externalAssetDirectories,
     lastSeenVersion,
     extensionVersion,
@@ -166,12 +176,18 @@ function App() {
   const launchIntoDirectory = useCallback((directory: Directory) => {
     transport.send({ type: 'launchAgent', directoryPath: directory.path });
   }, []);
+  // The host picks the Directory (the definition's first) and may refuse with
+  // agentLaunchRejected; nothing to decide here.
+  const launchWithDefinition = useCallback((definition: AgentDefinition) => {
+    transport.send({ type: 'launchAgent', definitionName: definition.name });
+  }, []);
   const mobileShell = useMobileShell({
     getOfficeState,
     terminalAgentIds,
     drawer: terminalDrawer,
     focusedAgentId,
     launchAgent: launchIntoDirectory,
+    launchAgentDefinition: launchWithDefinition,
   });
 
   const currentMajorMinor = toMajorMinor(extensionVersion);
@@ -198,6 +214,31 @@ function App() {
     setAreaMappings,
     getOfficeState,
   });
+
+  const agentDefinitionEditor = useAgentDefinitionEditor({
+    agentDefinitions,
+    agentDefinitionSaved,
+    agentDefinitionRejection,
+  });
+  const agentDefinitionLaunch = useMemo<AgentDefinitionLaunch>(
+    () => ({
+      definitions: agentDefinitions,
+      onSelect: launchWithDefinition,
+      onAdd: agentDefinitionEditor.add,
+      onEdit: agentDefinitionEditor.edit,
+    }),
+    [agentDefinitions, launchWithDefinition, agentDefinitionEditor.add, agentDefinitionEditor.edit],
+  );
+
+  // A refused launch (cap reached, Directory not allowed) shows for a few
+  // seconds; nothing was spawned, so there is nothing else to undo.
+  const [launchNotice, setLaunchNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (agentLaunchRejection === null) return;
+    setLaunchNotice(agentLaunchRejection.reason);
+    const timer = window.setTimeout(() => setLaunchNotice(null), LAUNCH_NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [agentLaunchRejection]);
 
   const handleToggleDebugMode = useCallback(() => setIsDebugMode((prev) => !prev), []);
   const handleToggleAlwaysShowOverlay = useCallback(() => {
@@ -579,6 +620,7 @@ function App() {
             panRef={editor.panRef}
             onCloseAgent={handleCloseAgent}
             alwaysShowOverlay={alwaysShowOverlay}
+            agentDefinitionNames={agentDefinitionNames}
           />
         </>
       ) : (
@@ -639,6 +681,7 @@ function App() {
           directories={directories}
           onAddDirectory={directoryEditor.add}
           onEditDirectory={directoryEditor.edit}
+          agentDefinitionLaunch={agentDefinitionLaunch}
           terminalAvailable={terminalAvailable}
           terminalUnavailableReason={terminalUnavailableReason}
         />
@@ -716,6 +759,7 @@ function App() {
           directories={directories}
           onAddDirectory={directoryEditor.add}
           onEditDirectory={directoryEditor.edit}
+          agentDefinitionLaunch={agentDefinitionLaunch}
           onCloseAgent={handleCloseAgent}
           keyboardOpen={keyboard.keyboardOpen}
         />
@@ -809,6 +853,25 @@ function App() {
         onDelete={directoryEditor.remove}
         onClose={directoryEditor.close}
       />
+      <AgentDefinitionModal
+        isOpen={agentDefinitionEditor.modal.open}
+        editing={agentDefinitionEditor.modal.editing}
+        error={agentDefinitionEditor.error}
+        directories={directories}
+        skills={localSkills}
+        onSubmit={agentDefinitionEditor.submit}
+        onDelete={agentDefinitionEditor.remove}
+        onClose={agentDefinitionEditor.close}
+      />
+      {launchNotice !== null && (
+        <div
+          role="alert"
+          data-testid="agent-launch-notice"
+          className="absolute mobile-safe-top left-1/2 -translate-x-1/2 z-30 pixel-panel px-8 py-4 text-sm text-danger"
+        >
+          {launchNotice}
+        </div>
+      )}
 
       <ChangelogModal
         isOpen={isChangelogOpen}

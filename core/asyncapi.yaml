@@ -121,6 +121,12 @@ components:
         - $ref: '#/components/schemas/DirectorySaved'
         - $ref: '#/components/schemas/DirectoryRejected'
         - $ref: '#/components/schemas/DirectorySuggestions'
+        # Agent definitions (Agent Office)
+        - $ref: '#/components/schemas/AgentDefinitionsLoaded'
+        - $ref: '#/components/schemas/AgentDefinitionSaved'
+        - $ref: '#/components/schemas/AgentDefinitionRejected'
+        - $ref: '#/components/schemas/AgentLaunchRejected'
+        - $ref: '#/components/schemas/LocalSkillsLoaded'
         # Terminal (standalone embedded terminal control plane)
         - $ref: '#/components/schemas/TerminalAvailability'
         - $ref: '#/components/schemas/TerminalSessionOpened'
@@ -157,6 +163,9 @@ components:
         - $ref: '#/components/schemas/SaveDirectory'
         - $ref: '#/components/schemas/RemoveDirectory'
         - $ref: '#/components/schemas/RequestDirectorySuggestions'
+        - $ref: '#/components/schemas/SaveAgentDefinition'
+        - $ref: '#/components/schemas/RemoveAgentDefinition'
+        - $ref: '#/components/schemas/RequestLocalSkills'
         - $ref: '#/components/schemas/RequestDiagnostics'
       discriminator: type
 
@@ -196,6 +205,9 @@ components:
           type: integer
         directoryName:
           type: string
+        definitionName:
+          type: string
+          description: Name of the Agent definition the agent was launched with, if any.
         isExternal:
           type: boolean
         palette:
@@ -256,6 +268,11 @@ components:
           description: Map of agent ID (string) to external flag.
           additionalProperties:
             type: boolean
+        definitionNames:
+          type: object
+          description: Map of agent ID (string) to the name of its Agent definition. Absent for agents launched without one.
+          additionalProperties:
+            type: string
 
     AgentStatus:
       description: Active vs waiting state for an agent (drives character animation).
@@ -862,6 +879,82 @@ components:
           type: string
           description: Human-readable cause, shown inline in the Directory modal.
 
+    AgentDefinitionsLoaded:
+      description: |
+        Every Agent definition on this host (`~/.pixel-agents/agents/*.yaml`),
+        sorted by name. Sent on connect and rebroadcast to every office after
+        each save or removal.
+      type: object
+      additionalProperties: false
+      required: [type, definitions]
+      properties:
+        type:
+          const: agentDefinitionsLoaded
+        definitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentDefinition'
+
+    AgentDefinitionSaved:
+      description: |
+        A `saveAgentDefinition` was accepted and written. Point-to-point to the
+        saving client, right after the `agentDefinitionsLoaded` rebroadcast.
+      type: object
+      additionalProperties: false
+      required: [type, definition]
+      properties:
+        type:
+          const: agentDefinitionSaved
+        definition:
+          $ref: '#/components/schemas/AgentDefinition'
+
+    AgentDefinitionRejected:
+      description: |
+        A `saveAgentDefinition` or `removeAgentDefinition` failed validation or
+        could not be written. Point-to-point; nothing changed on disk.
+      type: object
+      additionalProperties: false
+      required: [type, name, reason]
+      properties:
+        type:
+          const: agentDefinitionRejected
+        name:
+          type: string
+        reason:
+          type: string
+
+    AgentLaunchRejected:
+      description: |
+        A `launchAgent` with a `definitionName` was refused before anything was
+        spawned: unknown definition, a Directory the definition does not allow,
+        or its `maxConcurrent` already reached. Point-to-point.
+      type: object
+      additionalProperties: false
+      required: [type, definitionName, reason]
+      properties:
+        type:
+          const: agentLaunchRejected
+        definitionName:
+          type: string
+        reason:
+          type: string
+
+    LocalSkillsLoaded:
+      description: |
+        Skills installed on this host that an Agent definition can attach: the
+        user's `~/.claude/skills/*` and each Directory's `.claude/skills/*`.
+        Point-to-point reply to `requestLocalSkills`.
+      type: object
+      additionalProperties: false
+      required: [type, skills]
+      properties:
+        type:
+          const: localSkillsLoaded
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocalSkill'
+
     DirectorySuggestions:
       description: |
         Candidate paths for the Directory modal, recovered from the working
@@ -989,6 +1082,14 @@ components:
         directoryPath:
           type: string
           description: Path of the Directory to launch into.
+        definitionName:
+          type: string
+          description: |
+            Launch with this Agent definition: its role becomes the appended
+            system prompt, and its skills, tools and model are applied. When
+            `directoryPath` is absent the definition's first Directory is used;
+            when present it must be one of the definition's Directories (if it
+            lists any). A refused launch replies `agentLaunchRejected`.
 
     FocusAgent:
       description: Focus an agent's terminal.
@@ -1288,6 +1389,43 @@ components:
         path:
           type: string
 
+    SaveAgentDefinition:
+      description: |
+        Create or replace an Agent definition. `previousName` identifies the
+        definition being edited (a rename removes the old file); absent means
+        new. Validated host-side; replies `agentDefinitionSaved` or
+        `agentDefinitionRejected`.
+      type: object
+      additionalProperties: false
+      required: [type, definition]
+      properties:
+        type:
+          const: saveAgentDefinition
+        definition:
+          $ref: '#/components/schemas/AgentDefinition'
+        previousName:
+          type: string
+
+    RemoveAgentDefinition:
+      description: Delete an Agent definition. Agents already launched with it keep running.
+      type: object
+      additionalProperties: false
+      required: [type, name]
+      properties:
+        type:
+          const: removeAgentDefinition
+        name:
+          type: string
+
+    RequestLocalSkills:
+      description: Ask the host for the skills an Agent definition can attach; it replies `localSkillsLoaded`.
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          const: requestLocalSkills
+
     RequestDirectorySuggestions:
       description: >-
         Ask the host for tappable path suggestions for the Directory modal; it
@@ -1368,6 +1506,80 @@ components:
           type: string
         source:
           $ref: '#/components/schemas/DirectorySource'
+
+    AgentDefinition:
+      description: |
+        A named, reusable profile an agent can be launched with: what it is
+        for (`role`, `bestAt`, `tags`, read by the router in phase 3) and how
+        it runs (`skills`, `tools`, `model`, `directories`, `maxConcurrent`).
+        Stored as YAML (snake_case keys) in `~/.pixel-agents/agents/`.
+      type: object
+      additionalProperties: false
+      required: [name, role]
+      properties:
+        name:
+          type: string
+          description: Unique display name, e.g. "Rita". Also the file's stem, slugified.
+        role:
+          type: string
+          description: Short role id, e.g. "bug-hunter".
+        bestAt:
+          type: string
+          description: One line on what this agent is best at.
+        tags:
+          type: array
+          items:
+            type: string
+        skills:
+          type: array
+          description: Names of local skills to attach (see LocalSkill.name).
+          items:
+            type: string
+        tools:
+          type: array
+          description: Built-in tools available to the agent. Empty means the CLI default set.
+          items:
+            type: string
+        model:
+          type: string
+          description: Model alias or full name. Empty means the CLI default.
+        maxConcurrent:
+          type: integer
+          description: Most agents launched with this definition at once. 0 means no limit.
+        directories:
+          type: array
+          description: Directory paths this agent may be launched into. Empty means any.
+          items:
+            type: string
+        prompt:
+          type: string
+          description: Extra instructions appended to the system prompt after the role.
+
+    LocalSkill:
+      description: A skill folder (one with a SKILL.md) found on the host.
+      type: object
+      additionalProperties: false
+      required: [name, path, source]
+      properties:
+        name:
+          type: string
+          description: The skill's folder name, unique across sources (user wins).
+        description:
+          type: string
+          description: From the SKILL.md frontmatter, when present.
+        path:
+          type: string
+          description: Absolute path of the skill folder.
+        source:
+          $ref: '#/components/schemas/LocalSkillSource'
+        directoryName:
+          type: string
+          description: The Directory the skill came from, when `source` is `directory`.
+
+    LocalSkillSource:
+      description: Where a LocalSkill was found, `~/.claude/skills` (user) or a Directory's `.claude/skills`.
+      type: string
+      enum: [user, directory]
 
     DirectorySource:
       description: |
