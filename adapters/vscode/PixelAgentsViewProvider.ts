@@ -559,6 +559,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           reply: (m) => this.sendOrBuffer(m),
           suggestions: () =>
             collectDirectorySuggestions(claudeProvider, this.shownHostDirectories()),
+          onDirectorySaved: (directoryPath) => this.runtime.trackDirectory(directoryPath),
         });
       } else if (message.type === 'setShowHostDirectories') {
         if (typeof message.enabled === 'boolean') {
@@ -824,6 +825,11 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
               this.runtime.startProjectScan(folderProjectDir);
             }
           }
+        }
+
+        // Sessions started in a user-defined Directory are tracked too.
+        for (const directory of readConfig().directories) {
+          this.runtime.trackDirectory(directory.path);
         }
 
         this.runtime.startStaleCheck();

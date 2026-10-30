@@ -75,4 +75,24 @@ describe('AgentRuntime -- D5 foreign-session gate', () => {
     fireSessionStartThenStop('d5-tracked-dir', dir);
     expect(store.size).toBe(1);
   });
+
+  it('adopts a session started in a tracked Directory, even with watchAllSessions off', () => {
+    store = new AgentStateStore();
+    runtime = new AgentRuntime(store, claudeProvider);
+    const directory = untrackedDir();
+    runtime.trackDirectory(directory);
+    const projectDir = claudeProvider.getSessionDirs!(directory)[0];
+    runtime.handleHookEvent('claude', {
+      hook_event_name: 'SessionStart',
+      session_id: 'd5-directory',
+      source: 'startup',
+      cwd: directory,
+      transcript_path: path.join(projectDir, 'd5-directory.jsonl'),
+    });
+    runtime.handleHookEvent('claude', {
+      hook_event_name: 'Stop',
+      session_id: 'd5-directory',
+    });
+    expect(store.size).toBe(1);
+  });
 });

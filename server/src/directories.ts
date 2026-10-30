@@ -211,6 +211,10 @@ export interface DirectoryMessageDeps {
    *  session transcripts. Injected rather than imported so this module stays
    *  free of provider knowledge — see directorySuggestions.ts. */
   suggestions: () => string[];
+  /** A Directory was stored, at this resolved path. The host starts tracking its
+   *  sessions here, so a Directory added while the server runs behaves like one
+   *  it read at startup. */
+  onDirectorySaved?: (directoryPath: string) => void;
 }
 
 /**
@@ -248,6 +252,7 @@ export function handleDirectoryClientMessage(
         type: 'directorySaved',
         directory: { name: result.name, path: result.path, source: 'user' },
       });
+      deps.onDirectorySaved?.(result.path);
       return true;
     }
 

@@ -23,6 +23,7 @@ import {
 describe('directories', () => {
   let tempHome: string;
   let originalHome: string | undefined;
+  let originalUserProfile: string | undefined;
   /** Real directories on disk to point Directories at. */
   let alpha: string;
   let beta: string;
@@ -30,7 +31,10 @@ describe('directories', () => {
   beforeEach(() => {
     tempHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-dirs-test-')));
     originalHome = process.env.HOME;
+    originalUserProfile = process.env.USERPROFILE;
     process.env.HOME = tempHome;
+    // os.homedir() reads USERPROFILE on Windows, not HOME.
+    process.env.USERPROFILE = tempHome;
     alpha = path.join(tempHome, 'alpha');
     beta = path.join(tempHome, 'beta');
     fs.mkdirSync(alpha);
@@ -42,6 +46,11 @@ describe('directories', () => {
       delete process.env.HOME;
     } else {
       process.env.HOME = originalHome;
+    }
+    if (originalUserProfile === undefined) {
+      delete process.env.USERPROFILE;
+    } else {
+      process.env.USERPROFILE = originalUserProfile;
     }
     fs.rmSync(tempHome, { recursive: true, force: true });
   });
@@ -235,6 +244,22 @@ describe('directories', () => {
           ],
         },
       ]);
+    });
+
+    it('saveDirectory reports the stored path to the host, and a refused save does not', () => {
+      const saved: string[] = [];
+      const withTracking = { ...deps(), onDirectorySaved: (p: string) => saved.push(p) };
+
+      handleDirectoryClientMessage(
+        { type: 'saveDirectory', name: 'Mine', path: alpha },
+        withTracking,
+      );
+      handleDirectoryClientMessage(
+        { type: 'saveDirectory', name: 'Gone', path: path.join(alpha, 'missing') },
+        withTracking,
+      );
+
+      expect(saved).toEqual([alpha]);
     });
 
     it('saveDirectory tells the saver the name and path the host stored, not what was typed', () => {

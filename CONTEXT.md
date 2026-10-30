@@ -75,7 +75,7 @@ Start a new agent from the office.
 _Avoid_: spawn (that's the character-level visual event), create
 
 **Directory**:
-A named filesystem location agents can be launched into. Directories come from two sources: defined by the user in the office, or contributed by the host — VS Code contributes its workspace folders, standalone contributes the directory the server was started from. Host-contributed directories cannot be edited in the office.
+A named filesystem location agents can be launched into. Directories come from two sources: defined by the user in the office, or contributed by the host — VS Code contributes its workspace folders, standalone contributes the directory the server was started from. Host-contributed directories cannot be edited in the office. Sessions started in a user-defined Directory are adopted without Watch All Sessions.
 _Avoid_: folder, workspace folder (that's the VS Code-contributed source, not the concept), project
 
 **Adopt**:

@@ -395,6 +395,7 @@ export function handleClientMessage(
         reply: send,
         suggestions: () =>
           collectDirectorySuggestions(claudeProvider, shownHostDirectoriesFor(ctx)),
+        onDirectorySaved: (directoryPath) => runtime?.trackDirectory(directoryPath),
       });
       break;
 

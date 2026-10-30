@@ -87,7 +87,7 @@ export class AgentRuntime {
 
   constructor(
     private readonly store: AgentStateStore,
-    provider: HookProvider,
+    private readonly provider: HookProvider,
   ) {
     // Wire module-level dependencies
     setDismissalTracker(this.dismissalTracker);
@@ -431,6 +431,15 @@ export class AgentRuntime {
       onAgentCreated ?? ((agent) => this.registerAgent(agent.sessionId, agent.id)),
       this.hooksEnabled,
     );
+  }
+
+  /** Track the sessions of a Directory, so they are adopted without Watch All
+   *  Sessions. Skips a tracked dir: scanning again would re-seed its files. */
+  trackDirectory(directoryPath: string): void {
+    const projectDir = this.provider.getSessionDirs?.(directoryPath)[0];
+    if (!projectDir || isTrackedProjectDir(projectDir)) return;
+    console.log(`[Pixel Agents] Scanning project dir: ${projectDir}`);
+    this.startProjectScan(projectDir);
   }
 
   /** Start external session scanning (detects sessions from other terminals). */
